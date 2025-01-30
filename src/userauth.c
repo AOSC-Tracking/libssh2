@@ -107,7 +107,7 @@ static char *userauth_list(LIBSSH2_SESSION *session, const char *username,
     if(session->userauth_list_state == libssh2_NB_state_created) {
         rc = _libssh2_transport_send(session, session->userauth_list_data,
                                      session->userauth_list_data_len,
-                                     (unsigned char *)"none", 4);
+                                     (const unsigned char *)"none", 4);
         if(rc == LIBSSH2_ERROR_EAGAIN) {
             _libssh2_error(session, LIBSSH2_ERROR_EAGAIN,
                            "Would block requesting userauth list");
@@ -487,7 +487,8 @@ password_response:
                         _libssh2_store_str(&s, "password",
                                            sizeof("password") - 1);
                         *s++ = 0x01;
-                        _libssh2_store_str(&s, (char *)password, password_len);
+                        _libssh2_store_str(&s, (const char *)password,
+                                           password_len);
                         _libssh2_store_u32(&s,
                                            session->userauth_pswd_newpw_len);
                         /* send session->userauth_pswd_newpw separately */
@@ -500,7 +501,7 @@ password_response:
                         rc = _libssh2_transport_send(session,
                                             session->userauth_pswd_data,
                                             session->userauth_pswd_data_len,
-                                            (unsigned char *)
+                                            (const unsigned char *)
                                             session->userauth_pswd_newpw,
                                             session->userauth_pswd_newpw_len);
                         if(rc == LIBSSH2_ERROR_EAGAIN) {
@@ -565,7 +566,8 @@ libssh2_userauth_password_ex(LIBSSH2_SESSION *session, const char *username,
     int rc;
     BLOCK_ADJUST(rc, session,
                  userauth_password(session, username, username_len,
-                                   (unsigned char *)password, password_len,
+                                   (const unsigned char *)password,
+                                   password_len,
                                    passwd_change_cb));
     return rc;
 }
@@ -776,7 +778,7 @@ memory_read_privatekey(LIBSSH2_SESSION * session,
 
     if((*hostkey_method)->
         initPEMFromMemory(session, privkeyfiledata, privkeyfiledata_len,
-                          (unsigned char *) passphrase,
+                          (const unsigned char *) passphrase,
                           hostkey_abstract)) {
         return _libssh2_error(session, LIBSSH2_ERROR_FILE,
                               "Unable to initialize private key from memory");
@@ -817,7 +819,7 @@ file_read_privatekey(LIBSSH2_SESSION * session,
     }
 
     if((*hostkey_method)->
-        initPEM(session, privkeyfile, (unsigned char *) passphrase,
+        initPEM(session, privkeyfile, (const unsigned char *) passphrase,
                 hostkey_abstract)) {
         return _libssh2_error(session, LIBSSH2_ERROR_FILE,
                               "Unable to initialize private key from file");
@@ -857,7 +859,7 @@ sign_frommemory(LIBSSH2_SESSION *session, unsigned char **sig, size_t *sig_len,
         return rc;
 
     libssh2_prepare_iovec(&datavec, 1);
-    datavec.iov_base = (void *)data;
+    datavec.iov_base = (void *)LIBSSH2_UNCONST(data);
     datavec.iov_len  = data_len;
 
     if(privkeyobj->signv(session, sig, sig_len, 1, &datavec,
@@ -893,7 +895,7 @@ sign_fromfile(LIBSSH2_SESSION *session, unsigned char **sig, size_t *sig_len,
         return rc;
 
     libssh2_prepare_iovec(&datavec, 1);
-    datavec.iov_base = (void *)data;
+    datavec.iov_base = (void *)LIBSSH2_UNCONST(data);
     datavec.iov_len  = data_len;
 
     if(privkeyobj->signv(session, sig, sig_len, 1, &datavec,
@@ -2463,7 +2465,7 @@ libssh2_userauth_publickey_sk(LIBSSH2_SESSION *session,
                 LIBSSH2_FREE(session, tmp_method);
             }
 
-            if(!strncmp((char *)publickeydata, ecdsa, strlen(ecdsa))) {
+            if(!strncmp((const char *)publickeydata, ecdsa, strlen(ecdsa))) {
                 session->userauth_pblc_method_len = strlen(ecdsa);
                 session->userauth_pblc_method =
                     LIBSSH2_ALLOC(session, session->userauth_pblc_method_len);
@@ -2471,7 +2473,7 @@ libssh2_userauth_publickey_sk(LIBSSH2_SESSION *session,
                 memcpy(session->userauth_pblc_method, ecdsa,
                        session->userauth_pblc_method_len);
             }
-            else if(!strncmp((char *)publickeydata, ed25519,
+            else if(!strncmp((const char *)publickeydata, ed25519,
                              strlen(ed25519))) {
                 session->userauth_pblc_method_len = strlen(ed25519);
                 session->userauth_pblc_method =
@@ -2485,7 +2487,7 @@ libssh2_userauth_publickey_sk(LIBSSH2_SESSION *session,
                                        &session->userauth_pblc_method,
                                        &session->userauth_pblc_method_len,
                                        &pubkeydata, &pubkeydata_len,
-                                       (char *)publickeydata,
+                                       (const char *)publickeydata,
                                        publickeydata_len);
         }
     }
@@ -2510,7 +2512,7 @@ libssh2_userauth_publickey_sk(LIBSSH2_SESSION *session,
         LIBSSH2_FREE(session, tmp_publickeydata);
 
     if(sk_info.application) {
-        LIBSSH2_FREE(session, (void *)sk_info.application);
+        LIBSSH2_FREE(session, (void *)LIBSSH2_UNCONST(sk_info.application));
     }
 
     return rc;

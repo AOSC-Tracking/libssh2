@@ -78,7 +78,7 @@ static int _libssh2_hmac_init(libssh2_hmac_ctx *ctx,
     params[0] = OSSL_PARAM_construct_octet_string(
         OSSL_MAC_PARAM_KEY, (void *)key, keylen);
     params[1] = OSSL_PARAM_construct_utf8_string(
-        OSSL_MAC_PARAM_DIGEST, (char *)digest_name, 0);
+        OSSL_MAC_PARAM_DIGEST, (char *)LIBSSH2_UNCONST(digest_name), 0);
     params[2] = OSSL_PARAM_construct_end();
 
     return EVP_MAC_init(*ctx, NULL, 0, params);
@@ -487,7 +487,7 @@ _libssh2_rsa_sha2_verify(libssh2_rsa_ctx * rsactx,
 #else
 
     ret = RSA_verify(nid_type, hash, (unsigned int) hash_len,
-                     (unsigned char *) sig,
+                     (const unsigned char *) sig,
                      (unsigned int) sig_len, rsactx);
 #endif
 
@@ -1192,7 +1192,7 @@ read_private_key_from_memory(void **key_ctx,
 
     *key_ctx = NULL;
 
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
+#if OPENSSL_VERSION_NUMBER >= 0x1000200fL || defined(LIBSSH2_WOLFSSL)
     bp = BIO_new_mem_buf(filedata, (int)filedata_len);
 #else
     bp = BIO_new_mem_buf((char *)filedata, (int)filedata_len);
@@ -1202,7 +1202,7 @@ read_private_key_from_memory(void **key_ctx,
     }
 
     *key_ctx = read_private_key(bp, NULL, (pem_password_cb *) passphrase_cb,
-                                (void *) passphrase);
+                                (void *) LIBSSH2_UNCONST(passphrase));
 
     BIO_free(bp);
     return (*key_ctx) ? 0 : -1;
@@ -1226,7 +1226,7 @@ read_private_key_from_file(void **key_ctx,
     }
 
     *key_ctx = read_private_key(bp, NULL, (pem_password_cb *) passphrase_cb,
-                                (void *) passphrase);
+                                (void *) LIBSSH2_UNCONST(passphrase));
 
     BIO_free(bp);
     return (*key_ctx) ? 0 : -1;
@@ -2437,7 +2437,8 @@ gen_publickey_from_sk_ed25519_openssh_priv_data(LIBSSH2_SESSION *session,
             *key_handle = LIBSSH2_ALLOC(session, *handle_len);
 
             if(key_handle) {
-                memcpy((void *)*key_handle, handle, *handle_len);
+                memcpy((void *)LIBSSH2_UNCONST(*key_handle),
+                       handle, *handle_len);
             }
         }
     }
@@ -2477,9 +2478,10 @@ gen_publickey_from_sk_ed25519_openssh_priv_data(LIBSSH2_SESSION *session,
         _libssh2_store_str(&p, (const char *)app, app_len);
 
         if(application && app_len > 0) {
-            *application = (const char *)LIBSSH2_ALLOC(session, app_len + 1);
-            _libssh2_explicit_zero((void *)*application, app_len + 1);
-            memcpy((void *)*application, app, app_len);
+            *application = LIBSSH2_ALLOC(session, app_len + 1);
+            _libssh2_explicit_zero((void *)LIBSSH2_UNCONST(*application),
+                                   app_len + 1);
+            memcpy((void *)LIBSSH2_UNCONST(*application), app, app_len);
         }
 
         memcpy(method_buf, key_type, strlen(key_type));
@@ -3791,7 +3793,8 @@ gen_publickey_from_sk_ecdsa_openssh_priv_data(LIBSSH2_SESSION *session,
             *key_handle = LIBSSH2_ALLOC(session, *handle_len);
 
             if(*key_handle) {
-                memcpy((void *)*key_handle, handle, *handle_len);
+                memcpy((void *)LIBSSH2_UNCONST(*key_handle),
+                       handle, *handle_len);
             }
         }
     }
@@ -3829,9 +3832,10 @@ gen_publickey_from_sk_ecdsa_openssh_priv_data(LIBSSH2_SESSION *session,
         _libssh2_store_str(&p, (const char *)app, app_len);
 
         if(application && app_len > 0) {
-            *application = (const char *)LIBSSH2_ALLOC(session, app_len + 1);
-            _libssh2_explicit_zero((void *)*application, app_len + 1);
-            memcpy((void *)*application, app, app_len);
+            *application = LIBSSH2_ALLOC(session, app_len + 1);
+            _libssh2_explicit_zero((void *)LIBSSH2_UNCONST(*application),
+                                   app_len + 1);
+            memcpy((void *)LIBSSH2_UNCONST(*application), app, app_len);
         }
 
         LIBSSH2_FREE(session, *pubkeydata);
@@ -4663,7 +4667,8 @@ _libssh2_pub_priv_keyfile(LIBSSH2_SESSION *session,
     }
 
     (void)BIO_reset(bp);
-    pk = PEM_read_bio_PrivateKey(bp, NULL, NULL, (void *)passphrase);
+    pk = PEM_read_bio_PrivateKey(bp, NULL, NULL,
+                                 (void *)LIBSSH2_UNCONST(passphrase));
     BIO_free(bp);
 
     if(!pk) {
@@ -5003,7 +5008,7 @@ _libssh2_pub_priv_keyfilememory(LIBSSH2_SESSION *session,
                    LIBSSH2_TRACE_AUTH,
                    "Computing public key from private key."));
 
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
+#if OPENSSL_VERSION_NUMBER >= 0x1000200fL || defined(LIBSSH2_WOLFSSL)
     bp = BIO_new_mem_buf(privatekeydata, (int)privatekeydata_len);
 #else
     bp = BIO_new_mem_buf((char *)privatekeydata, (int)privatekeydata_len);
@@ -5013,7 +5018,8 @@ _libssh2_pub_priv_keyfilememory(LIBSSH2_SESSION *session,
                               "Unable to allocate memory when"
                               "computing public key");
     (void)BIO_reset(bp);
-    pk = PEM_read_bio_PrivateKey(bp, NULL, NULL, (void *)passphrase);
+    pk = PEM_read_bio_PrivateKey(bp, NULL, NULL,
+                                 (void *)LIBSSH2_UNCONST(passphrase));
 #ifdef HAVE_SSLERROR_BAD_DECRYPT
     sslError = ERR_get_error();
 #endif
@@ -5114,7 +5120,7 @@ _libssh2_sk_pub_keyfilememory(LIBSSH2_SESSION *session,
                    LIBSSH2_TRACE_AUTH,
                    "Computing public key from private key."));
 
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
+#if OPENSSL_VERSION_NUMBER >= 0x1000200fL || defined(LIBSSH2_WOLFSSL)
     bp = BIO_new_mem_buf(privatekeydata, (int)privatekeydata_len);
 #else
     bp = BIO_new_mem_buf((char *)privatekeydata, (int)privatekeydata_len);
@@ -5124,7 +5130,8 @@ _libssh2_sk_pub_keyfilememory(LIBSSH2_SESSION *session,
                               "Unable to allocate memory when"
                               "computing public key");
     (void)BIO_reset(bp);
-    pk = PEM_read_bio_PrivateKey(bp, NULL, NULL, (void *)passphrase);
+    pk = PEM_read_bio_PrivateKey(bp, NULL, NULL,
+                                 (void *)LIBSSH2_UNCONST(passphrase));
     BIO_free(bp);
 
     if(!pk) {
